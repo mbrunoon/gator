@@ -72,6 +72,25 @@ func handlerReset(s *state, _ command) error {
 	return nil
 }
 
+func handlerUsers(s *state, _ command) error {
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("could not select users: %w", err)
+	}
+
+	for _, u := range users {
+
+		if s.config.CurrentUserName == u.Name {
+			fmt.Println("-", u.Name, "(current)")
+		} else {
+			fmt.Println("-", u.Name)
+		}
+
+	}
+
+	return nil
+}
+
 func printUser(user database.User) {
 	fmt.Printf(" * ID:		%v\n", user.ID)
 	fmt.Printf(" * Name: 	%v\n", user.Name)

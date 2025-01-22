@@ -95,3 +95,13 @@ func printUser(user database.User) {
 	fmt.Printf(" * ID:		%v\n", user.ID)
 	fmt.Printf(" * Name: 	%v\n", user.Name)
 }
+
+func handlerAgg(_ *state, _ command) error {
+	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Feed: \n", feed)
+	return nil
+}

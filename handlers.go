@@ -91,11 +91,6 @@ func handlerUsers(s *state, _ command) error {
 	return nil
 }
 
-func printUser(user database.User) {
-	fmt.Printf(" * ID:		%v\n", user.ID)
-	fmt.Printf(" * Name: 	%v\n", user.Name)
-}
-
 func handlerAgg(_ *state, _ command) error {
 	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
 	if err != nil {
@@ -104,4 +99,76 @@ func handlerAgg(_ *state, _ command) error {
 
 	fmt.Printf("Feed: \n", feed)
 	return nil
+}
+
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.Args) != 2 {
+		return errors.New("invalid args")
+	}
+
+	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return err
+	}
+
+	name := cmd.Args[0]
+	url := cmd.Args[1]
+
+	feed, err := s.db.CreateFeed(context.Background(), database.CreateFeedParams{
+		ID:     uuid.New(),
+		UserID: user.ID,
+		Name:   name,
+		Url:    url,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Feed created:")
+	fmt.Println("ID:", feed.ID)
+	fmt.Println("UserID:", feed.UserID)
+	fmt.Println("Name:", feed.Name)
+	fmt.Println("Url:", feed.Url)
+
+	return nil
+}
+
+func handlerFeeds(s *state, cmd command) error {
+
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("error:", err)
+	}
+
+	if len(feeds) == 0 {
+		fmt.Println("no feeds found")
+		return nil
+	}
+
+	fmt.Println("Total feeds found", len(feeds))
+	for _, feed := range feeds {
+		user, err := s.db.GetUserById(context.Background(), feed.UserID)
+		if err != nil {
+			return fmt.Errorf("error:", err)
+		}
+
+		printFeed(feed, user)
+	}
+
+	return nil
+}
+
+// privates
+
+func printUser(user database.User) {
+	fmt.Printf(" * ID:		%v\n", user.ID)
+	fmt.Printf(" * Name: 	%v\n", user.Name)
+}
+
+func printFeed(feed database.Feed, user database.User) {
+	fmt.Println("ID:", feed.ID)
+	fmt.Println("Name:", feed.Name)
+	fmt.Println("URL:", feed.Url)
+	fmt.Println("User:", user.Name)
 }

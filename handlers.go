@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -103,14 +104,23 @@ func handlerUsers(s *state, _ command) error {
 	return nil
 }
 
-func handlerAgg(_ *state, _ command) error {
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
-	if err != nil {
-		return err
+func handlerAgg(s *state, cmd command) error {
+	if len(cmd.Args) < 1 || len(cmd.Args) > 2 {
+		return fmt.Errorf("wrongs params")
 	}
 
-	fmt.Printf("Feed: \n", feed)
-	return nil
+	timeBetweenRequests, err := time.ParseDuration(cmd.Args[0])
+	if err != nil {
+		return fmt.Errorf("error, %w", err)
+	}
+
+	log.Printf("Collecting feeds every %s...", timeBetweenRequests)
+
+	ticket := time.NewTicker(timeBetweenRequests)
+
+	for ; ; <-ticket.C {
+		scrapFeeds(s)
+	}
 }
 
 func handlerAddFeed(s *state, cmd command, user database.User) error {
@@ -267,4 +277,33 @@ func printFeed(feed database.Feed, user database.User) {
 	fmt.Println("Name:", feed.Name)
 	fmt.Println("URL:", feed.Url)
 	fmt.Println("User:", user.Name)
+}
+
+func scrapFeeds(s *state) {
+	feed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		fmt.Errorf("Couldn't no fetch feed")
+		return
+	}
+
+	scrapFeed(s.db, feed)
+}
+
+func scrapFeed(db *database.Queries, feed database.Feed) {
+	feedData, err := fetchFeed(context.Background(), feed.Url)
+	if err != nil {
+		fmt.Errorf("error on fetch fedd: %w", err)
+		return
+	}
+
+	_, err = db.MarkFeedFetched(context.Background(), feed.ID)
+	if err != nil {
+		fmt.Errorf("couldn't update feed: %w", err)
+	}
+
+	for _, item := range feedData.Channel.Item {
+		fmt.Printf("Found post: %s\n", item.Title)
+	}
+
+	fmt.Printf("%v news post found at %s", len(feedData.Channel.Item), feed.Name)
 }

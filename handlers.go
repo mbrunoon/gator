@@ -221,7 +221,35 @@ func handlerFollowing(s *state, cmd command, user database.User) error {
 	}
 
 	for _, feed := range feeds {
-		fmt.Println(feed.FeedName)
+		fmt.Printf("- '%s' \n", feed.FeedName)
+	}
+
+	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.Args) != 1 {
+		return fmt.Errorf("wrong args number")
+	}
+
+	url := cmd.Args[0]
+
+	feed, err := s.db.GetFeedByURL(context.Background(), url)
+	if err != nil {
+		return fmt.Errorf("error: %w", err)
+	}
+
+	feedFollow, err := s.db.GetFeedFollowByUser(context.Background(), database.GetFeedFollowByUserParams{
+		UserID: user.ID,
+		FeedID: feed.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("error: %w", err)
+	}
+
+	err = s.db.DeleteFeedFollow(context.Background(), feedFollow.ID)
+	if err != nil {
+		return fmt.Errorf("error: %w", err)
 	}
 
 	return nil
